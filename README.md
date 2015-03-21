@@ -1,2 +1,2 @@
 # web-one
-First docpad site
+First docpad node site
