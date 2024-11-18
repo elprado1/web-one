@@ -26,7 +26,7 @@ jobs:
     - name: Run data pull script
       run: python scripts/pull_data.py
       env:
-        DATA_API_KEY: ${{ secrets.DATA_API_KEY }}
+        DATA_API_KEY: ${{ secrets.ORG_GFM_SECRET }}
         # Add any other environment variables needed for data pulling
         
     - name: Run Excel formatting script
