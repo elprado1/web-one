@@ -15,28 +15,81 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.x'
+        python-version: '3.12'  # Explicitly specify Python version
     
     - name: Debug Python Environment
       run: |
         which python
         python --version
-        pip --version
+        echo "Python location:"
+        which python
+        echo "Pip location:"
+        which pip
         echo "Python path:"
-        python -c "import sys; print(sys.path)"
+        python -c "import sys; print('\n'.join(sys.path))"
         
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests
-        pip freeze
-        python -c "import requests; print('requests version:', requests.__version__)"
+        pip install --no-cache-dir requests pandas httpx python-dotenv
+        echo "Installed packages:"
+        pip list
+        echo "Checking requests installation:"
+        pip show requests
+        python -c "import requests; print(f'Requests is installed at: {requests.__file__}')"
+    
+    - name: Create test script
+      run: |
+        cat > test_imports.py << 'EOL'
+        import sys
+        print("Python version:", sys.version)
+        print("Python path:", sys.path)
+        print("Attempting to import required packages...")
+
+        try:
+            import requests
+            print("✓ requests imported successfully")
+        except ImportError as e:
+            print("✗ Failed to import requests:", e)
+
+        try:
+            import pandas
+            print("✓ pandas imported successfully")
+        except ImportError as e:
+            print("✗ Failed to import pandas:", e)
+
+        try:
+            import httpx
+            print("✓ httpx imported successfully")
+        except ImportError as e:
+            print("✗ Failed to import httpx:", e)
+
+        try:
+            from dotenv import load_dotenv
+            print("✓ python-dotenv imported successfully")
+        except ImportError as e:
+            print("✗ Failed to import python-dotenv:", e)
+        EOL
+
+    - name: Test imports
+      run: python test_imports.py
+        
+    - name: Create directories
+      run: mkdir -p csv_reports
         
     - name: Run data pull script
-      run: python scripts/pull_data.py
+      run: |
+        echo "Current working directory:"
+        pwd
+        echo "Contents of current directory:"
+        ls -la
+        echo "Content of scripts directory:"
+        ls -la scripts/
+        echo "Running script..."
+        python -v scripts/pull_data.py
       env:
-        DATA_API_KEY: ${{ secrets.ORG_GFM_SECRET }}
-        
+        ORG_GFM_SECRET: ${{ secrets.ORG_GFM_SECRET }}
+
     - name: Run Excel formatting script
       if: success()
       run: python scripts/format_excel.py
@@ -51,12 +104,15 @@ jobs:
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         RECIPIENT_LIST: ${{ secrets.RECIPIENT_LIST }}
 
+    - name: List generated files
+      if: always()
+      run: ls -la csv_reports/
+      
     - name: Handle Failure
       if: failure()
       run: |
-        echo "Workflow failed. Sending error notification..."
-        python scripts/send_error_notification.py
-      env:
-        EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
-        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-        EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+        echo "Workflow failed. Checking Python environment..."
+        python --version
+        pip list
+        echo "Current directory contents:"
+        ls -la
