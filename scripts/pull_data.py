@@ -1,40 +1,47 @@
-import requests
-import pandas as pd
-import httpx
-import json
-from datetime import datetime
-import csv
-import os
-from dotenv import load_dotenv
+name: Data Processing and Email Workflow
 
-def get_token(secrete: str) -> str:
-    """Get access token from iLumen API."""
-    try:
-        client = httpx.Client(timeout=30.0)  # Added timeout for reliability
-        response_API = client.get(f'https://app.ilumen.biz/WebApi/RequestAccessToken/?clientsecret={secrete}')
-        response_API.raise_for_status()  # Will raise an exception for 4XX/5XX status codes
-        return response_API.text
-    except httpx.HTTPError as e:
-        print(f"HTTP error occurred while getting token: {e}")
-        raise
-    finally:
-        client.close()
+on:
+  schedule:
+    - cron: '0 8 * * 1-5'
+  workflow_dispatch:
 
-def generate_report():
-    """Generate progress report from iLumen data."""
-    print("Starting report generation...")
+jobs:
+  process-and-send:
+    runs-on: ubuntu-latest
     
-    # Load environment variables from .env file
-    load_dotenv()
+    steps:
+    - uses: actions/checkout@v3
     
-    # Set up directories - using GitHub Actions workspace
-    reports_dir = 'csv_reports'
-    os.makedirs(reports_dir, exist_ok=True)
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Create requirements.txt
+        echo "requests==2.31.0" >> requirements.txt
+        echo "pandas==2.1.0" >> requirements.txt
+        echo "httpx==0.24.1" >> requirements.txt
+        echo "python-dotenv==1.0.0" >> requirements.txt
+        # Install dependencies
+        pip install -r requirements.txt
+        # Verify installations
+        python -c "import requests; import pandas; import httpx; import dotenv; print('All dependencies successfully imported')"
+        
+    - name: Create directories
+      run: mkdir -p csv_reports
+        
+    - name: Run data pull script
+      run: python scripts/pull_data.py
+      env:
+        ORG_GFM_SECRET: ${{ secrets.ORG_GFM_SECRET }}
 
-    # Get secrets from .env file
-    secrets = {
-        'ORG_GFM': os.getenv('ORG_GFM_SECRET')
-    }
+    - name: List generated files
+      if: always()
+      run: ls -la csv_reports/
 
     # Validate that required environment variables are present
     if not secrets['ORG_GFM']:
