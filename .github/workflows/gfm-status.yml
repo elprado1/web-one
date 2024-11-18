@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas requests openpyxl python-dotenv
+        pip install pandas requests httpx openpyxl python-dotenv
         # Add any other required packages
         
     - name: Run data pull script
